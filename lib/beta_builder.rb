@@ -16,6 +16,7 @@ module BetaBuilder
         :xcodebuild_path => "xcodebuild",
         :project_file_path => nil,
         :workspace_path => nil,
+        :package_file_base_path => nil,
         :scheme => nil,
         :app_name => nil,
         :arch => nil,
@@ -139,18 +140,26 @@ module BetaBuilder
           if @configuration.auto_archive
             Rake::Task["#{@namespace}:archive"].invoke
           end
-                    
-          FileUtils.rm_rf('pkg') && FileUtils.mkdir_p('pkg')
-#          FileUtils.mkdir_p("pkg/Payload")
-#          FileUtils.mv(@configuration.built_app_path, "pkg/Payload/#{@configuration.app_file_name}")
-#          Dir.chdir("pkg") do
-#            system("zip -r '#{@configuration.ipa_name}' Payload")
-#          end
+          
+					if @configuration.package_file_base_path
+						filePath = @configuration.package_file_base_path.to_s + "/" + @namespace.to_s
+						FileUtils.rm_f(filePath) && FileUtils.mkdir_p("#{@configuration.package_file_base_path}")
+					else
+						FileUtils.rm_rf('pkg') && FileUtils.mkdir_p('pkg')	
+					end          
           
           system("/usr/bin/xcrun -sdk iphoneos PackageApplication -v '#{@configuration.built_app_path}' -o '/tmp/#{@configuration.ipa_name}' --sign '#{@configuration.signing_identity}' --embed #{@configuration.provisioning_profile}")
 
-          FileUtils.mkdir('pkg/dist')
-          FileUtils.mv("/tmp/#{@configuration.ipa_name}", "pkg/dist")
+					if @configuration.package_file_base_path
+						filePath = @configuration.package_file_base_path.to_s + "/" + @namespace.to_s
+						unless File.exist?(filePath)
+							FileUtils.mkdir(filePath)	
+						end
+	          FileUtils.mv("/tmp/#{@configuration.ipa_name}", filePath)						
+					else
+	          FileUtils.mkdir('pkg/dist')
+	          FileUtils.mv("/tmp/#{@configuration.ipa_name}", "pkg/dist")
+					end          
         end
         
         if @configuration.deployment_strategy
